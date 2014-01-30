@@ -1,7 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Copyright (c) 2011-2012 Litecoin Developers
-// Copyright (c) 2013-2014 Dogecoin Developers
+// Copyright (c) 2013-2014 GoldDiggerCoin Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -189,7 +189,7 @@ bool GetIPFromIRC(SOCKET hSocket, string strMyName, CNetAddr& ipRet)
 void ThreadIRCSeed()
 {
     // Make this thread recognisable as the IRC seeding thread
-    RenameThread("dogecoin-ircseed");
+    RenameThread("golddiggercoin-ircseed");
 
     try
     {
@@ -294,16 +294,16 @@ void ThreadIRCSeed2()
         }
         
         if (fTestNet) {
-            Send(hSocket, "JOIN #dogecoinTEST3\r");
-            Send(hSocket, "WHO #dogecoinTEST3\r");
+            Send(hSocket, "JOIN #golddiggercoinTEST3\r");
+            Send(hSocket, "WHO #golddiggercoinTEST3\r");
         } else {
-            // randomly join #dogecoin00-#dogecoin99
+            // randomly join #golddiggercoin00-#golddiggercoin99
             // network is now over 3k peers , get them to join 50 random channels!
             //            channel_number = 0; 
             int channel_number = 0; //GetRandInt(50);
 
-            Send(hSocket, strprintf("JOIN #dogecoin%02d\r", channel_number).c_str());
-            Send(hSocket, strprintf("WHO #dogecoin%02d\r", channel_number).c_str());
+            Send(hSocket, strprintf("JOIN #golddiggercoin%02d\r", channel_number).c_str());
+            Send(hSocket, strprintf("WHO #golddiggercoin%02d\r", channel_number).c_str());
         }
 
         int64 nStart = GetTime();

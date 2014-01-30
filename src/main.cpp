@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2014 Dogecoin Developers
+// Copyright (c) 2013-2014 GoldDiggerCoin Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -35,7 +35,7 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0x1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Dogecoin: starting difficulty is 1 / 2^12
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // GoldDiggerCoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
@@ -67,7 +67,7 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Dogecoin Signed Message:\n";
+const string strMessageMagic = "GoldDiggerCoin Signed Message:\n";
 
 double dHashesPerSec = 0.0;
 int64 nHPSTimerStart = 0;
@@ -159,11 +159,13 @@ void static ResendWalletTransactions()
         pwallet->ResendWalletTransactions();
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//
+// Block Generation and Value
+//
 
-
-
-
-
+//Using a standard dice roll slightly weighted number 5 has a 10% chance and the number 6 a 1% chance. 
+static const double probabilities[] = {0.3, 0.2, 0.15, 0.14, 0.1, 0.01};
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -358,7 +360,7 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 
 bool CTxOut::IsDust() const
 {
-    // Dogecoin: IsDust() detection disabled, allows any valid dust to be relayed.
+    // GoldDiggerCoin: IsDust() detection disabled, allows any valid dust to be relayed.
     // The fees imposed on each dust txo is considered sufficient spam deterrant. 
     return false;
 }
@@ -630,7 +632,7 @@ int64 CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree,
 #endif
     }
 
-    // Dogecoin
+    // GoldDiggercoin
     // To limit dust spam, add nBaseFee for each output less than DUST_SOFT_LIMIT
     BOOST_FOREACH(const CTxOut& txout, vout)
         if (txout.nValue < DUST_SOFT_LIMIT)
@@ -1079,6 +1081,18 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
     return pblock->GetHash();
 }
 
+//Rolling the die
+int static roll_weighted_die() 
+{
+    std::vector<double> cumulative;
+    std::partial_sum(&probabilities[0], &probabilities[0] + 6,
+    		std::back_inserter(cumulative));
+    boost::uniform_real<> dist(0, cumulative.back());
+    boost::variate_generator<boost::mt19937&, boost::uniform_real<> > die(gen, dist);
+    return (std::lower_bound(cumulative.begin(), cumulative.end(), die()) - cumulative.begin()) + 1;
+}
+
+//Generate Random Value
 int static generateMTRandom(unsigned int s, int range)
 {
     boost::mt19937 gen(s);
@@ -1086,70 +1100,109 @@ int static generateMTRandom(unsigned int s, int range)
     return dist(gen);
 }
 
+//Block Generation & GoldDiggerCoin random magic.
 int64 static GetBlockValue(int nHeight, int64 nFees, uint256 prevHash)
 {
-    int64 nSubsidy = 10000 * COIN;
+    int64 nSubsidy = 0 * COIN;
 
-    std::string cseed_str = prevHash.ToString().substr(7,7);
+    std::string cseed_str = prevHash.ToString().substr(55,7);
     const char* cseed = cseed_str.c_str();
     long seed = hex2long(cseed);
-    int rand = generateMTRandom(seed, 999999);
-    int rand1 = 0;
-    int rand2 = 0;
-    int rand3 = 0;
-    int rand4 = 0;
-    int rand5 = 0;
 
-    if(nHeight < 100000)
+	int diceroll = roll_weighted_die();
+	//Debug Dice Rolls
+	printf("  Dice Rool : %d",diceroll);
+    //Generate Medium Vain Value
+    int mediumv = generateMTRandom(seed+500, 1000);
+	//Generate Large Vain Value
+	int largev  = generateMTRandom(seed+5000, 10000);
+    
+    if(nHeight == 1)
+            nSubsidy = 1100000 * COIN; //.5% Public Wallet Premine
+
+    else if(nHeight == 2)
+             nSubsidy = 1100000 * COIN; //.5% Coin Owner Premine
+
+    else if(nHeight > 250)
     {
-        nSubsidy = (1 + rand) * COIN;
+    		 //Paying out base block reward 50 Coins - This should occur 90% of the time.
+    		 if(nHeight > 5000 && diceroll <= 4)
+    		 {
+             nSubsidy = 50 * COIN;
+             }
+             //GoldDigger Random Magic - Discovering a Medium Golden Vain - This has a 10% chance of occurring.
+             else if(nHeight > 5000 && diceroll == 5)
+             {
+             nSubsidy = mediumv * COIN; //Medium Vain Reward should be random between 500-1000 Coins. 
+             }
+             //GoldDigger Random Magic - Discovering a Large Golden Vain - This has a 1% chance of occurring.
+             else if(nHeight > 5000 && diceroll == 6)
+             {
+             nSubsidy = largev * COIN;     //Large Vain Reward should be random between 5000-10000 Coins.
+             }
     }
-    else if(nHeight < 200000)
-    {
-        cseed_str = prevHash.ToString().substr(7,7);
-        cseed = cseed_str.c_str();
-        seed = hex2long(cseed);
-        rand1 = generateMTRandom(seed, 499999);
-        nSubsidy = (1 + rand1) * COIN;
-    }
-    else if(nHeight < 300000)
-    {
-        cseed_str = prevHash.ToString().substr(6,7);
-        cseed = cseed_str.c_str();
-        seed = hex2long(cseed);
-        rand2 = generateMTRandom(seed, 249999);
-        nSubsidy = (1 + rand2) * COIN;
-    }
-    else if(nHeight < 400000)
-    {
-        cseed_str = prevHash.ToString().substr(7,7);
-        cseed = cseed_str.c_str();
-        seed = hex2long(cseed);
-        rand3 = generateMTRandom(seed, 124999);
-        nSubsidy = (1 + rand3) * COIN;
-    }
-    else if(nHeight < 500000)
-    {
-        cseed_str = prevHash.ToString().substr(7,7);
-        cseed = cseed_str.c_str();
-        seed = hex2long(cseed);
-        rand4 = generateMTRandom(seed, 62499);
-        nSubsidy = (1 + rand4) * COIN;
-    }
-    else if(nHeight < 600000)
-    {
-        cseed_str = prevHash.ToString().substr(6,7);
-        cseed = cseed_str.c_str();
-        seed = hex2long(cseed);
-        rand5 = generateMTRandom(seed, 31249);
-        nSubsidy = (1 + rand5) * COIN;
-    }
+    //int64 nSubsidy = 10000 * COIN;
+
+    //std::string cseed_str = prevHash.ToString().substr(7,7);
+    //const char* cseed = cseed_str.c_str();
+    //long seed = hex2long(cseed);
+    //int rand = generateMTRandom(seed, 149);
+    //int rand1 = 0;
+    //int rand2 = 0;
+    //int rand3 = 0;
+    //int rand4 = 0;
+    //int rand5 = 0;
+
+    //if(nHeight < 100000)
+    //{
+    //    nSubsidy = (1 + rand) * COIN;
+    //}
+    //else if(nHeight < 200000)
+    //{
+    //    cseed_str = prevHash.ToString().substr(7,7);
+    //    cseed = cseed_str.c_str();
+    //    seed = hex2long(cseed);
+    //    rand1 = generateMTRandom(seed, 499999);
+    //    nSubsidy = (1 + rand1) * COIN;
+    //}
+    //else if(nHeight < 300000)
+    //{
+    //    cseed_str = prevHash.ToString().substr(6,7);
+    //    cseed = cseed_str.c_str();
+    //    seed = hex2long(cseed);
+    //    rand2 = generateMTRandom(seed, 249999);
+    //    nSubsidy = (1 + rand2) * COIN;
+    //}
+    //else if(nHeight < 400000)
+    //{
+    //    cseed_str = prevHash.ToString().substr(7,7);
+    //    cseed = cseed_str.c_str();
+    //    seed = hex2long(cseed);
+    //    rand3 = generateMTRandom(seed, 124999);
+    //    nSubsidy = (1 + rand3) * COIN;
+    //}
+    //else if(nHeight < 500000)
+    //{
+    //    cseed_str = prevHash.ToString().substr(7,7);
+    //    cseed = cseed_str.c_str();
+    //    seed = hex2long(cseed);
+    //    rand4 = generateMTRandom(seed, 62499);
+    //    nSubsidy = (1 + rand4) * COIN;
+    //}
+    //else if(nHeight < 600000)
+    //{
+    //    cseed_str = prevHash.ToString().substr(6,7);
+    //    cseed = cseed_str.c_str();
+    //    seed = hex2long(cseed);
+    //    rand5 = generateMTRandom(seed, 31249);
+    //    nSubsidy = (1 + rand5) * COIN;
+    //}
 
     return nSubsidy + nFees;
 }
 
-static const int64 nTargetTimespan = 4 * 60 * 60; // DogeCoin: every 4 hours
-static const int64 nTargetSpacing = 60; // DogeCoin: 1 minutes
+static const int64 nTargetTimespan = 24 * 60 * 60; // GoldDiggerCoin: every 4 hours
+static const int64 nTargetSpacing = 120; // GoldDiggerCoin: 1 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
@@ -1181,7 +1234,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 {
     unsigned int nProofOfWorkLimit = bnProofOfWorkLimit.GetCompact();
 
-    // Genesis block
+    // Genesis block (Master Golden Nugget)
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
 
@@ -1208,7 +1261,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return pindexLast->nBits;
     }
 
-    // Dogecoin: This fixes an issue where a 51% attack can change difficulty at will.
+    // GoldDiggercoin: This fixes an issue where a 51% attack can change difficulty at will.
     // Go back the full period unless it's the first retarget after genesis. Code courtesy of Art Forz
     int blockstogoback = nInterval-1;
     if ((pindexLast->nHeight+1) != nInterval)
@@ -2320,7 +2373,7 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired, unsigned int nToCheck)
 {
-    // Dogecoin: temporarily disable v2 block lockin until we are ready for v2 transition
+    // GoldDiggerCoin: temporarily disable v2 block lockin until we are ready for v2 transition
     return false;
     unsigned int nFound = 0;
     for (unsigned int i = 0; i < nToCheck && nFound < nRequired && pstart != NULL; i++)
@@ -4180,7 +4233,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
 //////////////////////////////////////////////////////////////////////////////
 //
-// DogecoinMiner
+// GoldDiggerCoinMiner
 //
 
 int static FormatHashBlocks(void* pbuffer, unsigned int len)
@@ -4593,7 +4646,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         return false;
 
     //// debug print
-    printf("DogecoinMiner:\n");
+    printf("GoldDiggerCoinMiner:\n");
     printf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex().c_str(), hashTarget.GetHex().c_str());
     pblock->print();
     printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
@@ -4602,7 +4655,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != hashBestChain)
-            return error("DogecoinMiner : generated block is stale");
+            return error("GoldDiggerCoinMiner : generated block is stale");
 
         // Remove key from key pool
         reservekey.KeepKey();
@@ -4616,17 +4669,17 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         // Process this block the same as if we had received it from another node
         CValidationState state;
         if (!ProcessBlock(state, NULL, pblock))
-            return error("DogecoinMiner : ProcessBlock, block not accepted");
+            return error("GoldDiggerCoinMiner : ProcessBlock, block not accepted");
     }
 
     return true;
 }
 
-void static DogecoinMiner(CWallet *pwallet)
+void static GoldDiggerCoinMiner(CWallet *pwallet)
 {
-    printf("DogecoinMiner started\n");
+    printf("GoldDiggerCoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("dogecoin-miner");
+    RenameThread("golddiggercoin-miner");
 
     // Each thread has its own key and counter
     CReserveKey reservekey(pwallet);
@@ -4648,7 +4701,7 @@ void static DogecoinMiner(CWallet *pwallet)
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-        printf("Running DogecoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+        printf("Running GoldDiggerCoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
@@ -4748,7 +4801,7 @@ void static DogecoinMiner(CWallet *pwallet)
     } }
     catch (boost::thread_interrupted)
     {
-        printf("DogecoinMiner terminated\n");
+        printf("GoldDigger CoinMiner terminated\n");
         throw;
     }
 }
@@ -4773,7 +4826,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&DogecoinMiner, pwallet));
+        minerThreads->create_thread(boost::bind(&GoldDiggerCoinMiner, pwallet));
 }
 
 // Amount compression:
