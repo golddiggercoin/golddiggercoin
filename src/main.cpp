@@ -1091,8 +1091,8 @@ int static roll_weighted_die()
     std::vector<double> cumulative;
     std::partial_sum(&probabilities[0], &probabilities[0] + 6,
     		std::back_inserter(cumulative));
-    boost::uniform_real<> dist(0, cumulative.back());
-    boost::variate_generator<boost::mt19937&, boost::uniform_real<> > die(gen, dist);
+    boost::uniform_int<> dist(0, cumulative.back());
+    boost::variate_generator<boost::mt19937&, boost::uniform_int<> > die(gen, dist);
     return (std::lower_bound(cumulative.begin(), cumulative.end(), die()) - cumulative.begin()) + 1;
 }
 
