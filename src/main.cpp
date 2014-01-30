@@ -1086,7 +1086,7 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 }
 
 //Rolling the die
-int static roll_weighted_die() 
+int static roll_weighted_die(unsigned int s) 
 {
 	boost::mt19937 gen(s);
     std::vector<double> cumulative;
