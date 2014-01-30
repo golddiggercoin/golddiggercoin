@@ -1111,7 +1111,7 @@ int64 static GetBlockValue(int nHeight, int64 nFees, uint256 prevHash)
 
 	int diceroll = roll_weighted_die();
 	//Debug Dice Rolls
-	printf("  Dice Rool : %d",diceroll);
+	printf("  Dice Roll : %d",diceroll);
     //Generate Medium Vain Value
     int mediumv = generateMTRandom(seed+500, 1000);
 	//Generate Large Vain Value
